@@ -75,7 +75,7 @@ if __name__ == '__main__':
     #inputFile = str(sys.argv[1])
     baseName=os.path.splitext(inputFile)[0]
     st = time.time()
-    img_CCD16=fits.HDUList([]) #Se crearan nro_imagenes*nsamp/16 (Ej: 5*112/6=35)
+
     hdulist = fits.open(inputFile)
     NAXIS1=int(hdulist[4].header['NAXIS1']) #Size X
     NAXIS2=int(hdulist[4].header['NAXIS2']) #Size Y
@@ -88,29 +88,40 @@ if __name__ == '__main__':
     LTA_channel=4
     CCDinMCM=16 
     gains=[]
-    datos=np.zeros(shape=(NAXIS1,NAXIS2),dtype=float)
-    img_CCD16=fits.HDUList([])
+    #img_CCD16=fits.HDUList([])
+    #print(hdulist[4].header)
+
     Map=[1,5,9,13,2,6,10,14,3,7,11,15,4,8,12,16]
-    Map=[1,5,12,16,2,9,13,6,3,10,14,7,4,11,15,8]
+    #Map=[1,5,12,16,2,9,13,6,3,10,14,7,4,11,15,8]
     for N in range(int(NSAMP/16)):  #Se recorre nsamp/16=7 veces por cada imagen    
     #for N in range(1):
+        Primaryhdu_MCM = fits.PrimaryHDU()
+        img_CCD16=fits.HDUList([Primaryhdu_MCM]) #Se crearan nro_imagenes*nsamp/16 (Ej: 5*112/6=35)
+        img_CCD16[0].header=hdulist[0].header
+        #print(img_CCD16[0].header)
         for CCD in Map:                               #Se recorre 16 veces para ir agarrando 16 CCD 
             img_parcial=GetSingleCCDImage(hdulist,LTA_channel,CCD-1+CCDinMCM*N,NCOL,NAXIS2,CCDNCOL,NSAMP)
+            image_hdu=fits.ImageHDU(img_parcial)
+            image_hdu.header=hdulist[LTA_channel].header
+            #image_hdu.verify('fix') 
             ############################################################
             if args[1]==str("yes"):
                 gain=CalcGain(img_parcial,NAXIS2) #Lineas encargada del histograma.
                 print("CCD ",(N*16+CCD)+1," ",gain)
                 gains.append(gain)
             ############################################################
-            img_CCD16.append(fits.ImageHDU(img_parcial))
+            #img_CCD16.append(fits.ImageHDU(img_parcial))
+            img_CCD16.append(image_hdu)
         #Proceso de guardado
         Directory_Demux="Demuxed_"+baseName+"/"
         if not os.path.exists(Directory_Demux):
             os.makedirs(Directory_Demux)
-        SaveName=str(Directory_Demux+"MCM"+str(N+1)+"_Demuxed_"+baseName+"_PROC.fits") 
+        SaveName=str(Directory_Demux+"PROC_MCM"+str(N+1)+"_Demuxed_"+baseName+".fits") 
+        #img_CCD16.writeto(SaveName,overwrite=True)
+        img_CCD16.verify('fix') 
         img_CCD16.writeto(SaveName,overwrite=True)
         img_CCD16.clear()
-        print((N+1)*10,"% done...")
+        print((N+1)/(NSAMP/16)*100,"% done...")
     hdulist.close()
     ############################################################
     if args[1]==str("yes"):
