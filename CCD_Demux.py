@@ -59,9 +59,10 @@ def CalcGain(img_CCD16,NROW):#Recibe 1 imagen DE 1 CCD
 ###Function in charge of demultiplexing
 def GetSingleCCDImage(hdul,LTA_channel,ColInit,NCOL,tamy,ccdncol,NSAMP): 
     MuxedImage=hdul[LTA_channel].data
-    LastCol=ColInit+(NCOL-1)*NSAMP 
+    LastCol=ColInit+(NCOL-1)*NSAMP+1
+    print(LastCol) 
     indexCol=list(range(ColInit,LastCol,NSAMP))
-    DeMuxedImage=np.array(MuxedImage[:, indexCol],dtype=float)
+    DeMuxedImage=np.array(MuxedImage[:, indexCol],dtype='f')
     for p in range(tamy):
         Offset=np.mean(DeMuxedImage[p,(NCOL-int(NCOL-ccdncol/2)):NCOL])
         DeMuxedImage[p,:]=DeMuxedImage[p,:]-Offset
@@ -95,15 +96,19 @@ if __name__ == '__main__':
     #Map=[1,5,12,16,2,9,13,6,3,10,14,7,4,11,15,8]
     for N in range(int(NSAMP/16)):  #Se recorre nsamp/16=7 veces por cada imagen    
     #for N in range(1):
-        Primaryhdu_MCM = fits.PrimaryHDU()
+        #Primaryhdu_MCM = fits.PrimaryHDU()
+        Primaryhdu_MCM = fits.PrimaryHDU(header=hdulist[0].header)
         img_CCD16=fits.HDUList([Primaryhdu_MCM]) #Se crearan nro_imagenes*nsamp/16 (Ej: 5*112/6=35)
-        img_CCD16[0].header=hdulist[0].header
+        #img_CCD16[0].header=hdulist[0].header
         #print(img_CCD16[0].header)
         for CCD in Map:                               #Se recorre 16 veces para ir agarrando 16 CCD 
             img_parcial=GetSingleCCDImage(hdulist,LTA_channel,CCD-1+CCDinMCM*N,NCOL,NAXIS2,CCDNCOL,NSAMP)
-            image_hdu=fits.ImageHDU(img_parcial)
-            image_hdu.header=hdulist[LTA_channel].header
-            #image_hdu.verify('fix') 
+            print(img_parcial.dtype)
+            print (CCD)
+            img_name="CCD "+str(CCD)+" in MCM "+str(N+1)
+            image_hdu=fits.ImageHDU(data=img_parcial,header=hdulist[LTA_channel].header,name=img_name)
+            #image_hdu.header=hdulist[LTA_channel].header
+            image_hdu.verify('silentfix') 
             ############################################################
             if args[1]==str("yes"):
                 gain=CalcGain(img_parcial,NAXIS2) #Lineas encargada del histograma.
