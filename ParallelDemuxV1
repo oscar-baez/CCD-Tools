@@ -69,12 +69,13 @@ def GetSingleCCDImage(hdul,LTA_channel,ColInit,NCOL,tamy,ccdncol,NSAMP):
 
 ############################################################################################
 if __name__ == '__main__': 
+    Start_Time = time.time() ###Variable for time measurement
     args = sys.argv[1:]
     inputFile = str(args[0])
     #inputFile = str(sys.argv[1])
     baseName=os.path.splitext(inputFile)[0]
     st = time.time()
-
+    
     hdulist = fits.open(inputFile)
     NAXIS1=int(hdulist[4].header['NAXIS1']) #Size X
     NAXIS2=int(hdulist[4].header['NAXIS2']) #Size Y
