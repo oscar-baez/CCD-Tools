@@ -28,7 +28,9 @@ def save_multi_image(filename):
 
 def CalcGain(img_CCD16,NROW):#Recibe 1 imagen DE 1 CCD
     #step=int(NROW/(0.3*NROW))
+    a = np.random.randint(0, NROW-1, size=int(NROW*0.3))
     #data = np.array((img_CCD16[0:NROW:step][:]).flatten())
+    #data = np.array((img_CCD16[a][:]).flatten())
     data = (img_CCD16).flatten()
     #print(np.shape(data))
     a = list(range(-200,500))
@@ -89,6 +91,7 @@ if __name__ == '__main__':
     gains=[]
 
     Map=[1,5,9,13,2,6,10,14,3,7,11,15,4,8,12,16]
+    #Map=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
     for N in range(int(NSAMP/16)):  #Se recorre nsamp/16=7 veces por cada imagen    
         Primaryhdu_MCM = fits.PrimaryHDU(header=hdulist[0].header)
         img_CCD16=fits.HDUList([Primaryhdu_MCM]) #Se crearan nro_imagenes*nsamp/16 (Ej: 5*112/6=35)
@@ -118,7 +121,7 @@ if __name__ == '__main__':
     hdulist.close()
     ############################################################
     if args[1]==str("yes"):
-        filename = Directory_Demux+"Histogram_curvefit_pair_FULLimage_params_V2.pdf" #Lineas encargadas del pdf de los histogramas.
+        filename = Directory_Demux+"Histogram"+baseName+".pdf" #Lineas encargadas del pdf de los histogramas.
         save_multi_image(filename)
     ############################################################
     et = time.time()

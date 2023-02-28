@@ -14,7 +14,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from scipy.optimize import curve_fit
 from astropy.io import fits
 from distutils.debug import DEBUG
-
+from functools import partial
+from multiprocessing import Process, Value, Array
 
 ####To run: python3 256chTool.py Multiplexed_LTA_Output_Image.fz
 
@@ -94,14 +95,15 @@ def GainSingleCCD(img_CCD16):
         return[-1] ###Return value for an error
 
 ###Function in charge of demultiplexing
-def GetSingleCCDImage(ColInit): 
-    #print("entra a la funcion")
-    s1 = time.time()
-    NAXIS1=int(hdulist[4].header['NAXIS1']) #Size X
-    NAXIS2=int(hdulist[4].header['NAXIS2']) #Size Y
-    NSAMP=int(hdulist[4].header['NSAMP']) #112
-    NCOL=int(hdulist[4].header['NCOL'])
-    CCDNCOL=int(hdulist[4].header['CCDNCOL'])
+def GetSingleCCDImage(Order,NAXIS2,NSAMP,NCOL,CCDNCOL,MuxedImage): 
+    #print("entra a la funcion orden ",Order," y N ",N)
+    print("entra a la funcion order ",Order)
+    s1 = time.time() ###Variable for time measurement
+    # NAXIS1=int(hdulist[4].header['NAXIS1']) #Size X
+    # NAXIS2=int(hdulist[4].header['NAXIS2']) #Size Y
+    # NSAMP=int(hdulist[4].header['NSAMP']) #112
+    # NCOL=int(hdulist[4].header['NCOL'])
+    # CCDNCOL=int(hdulist[4].header['CCDNCOL'])
     #scidata = hdulist[4].data
     #tamxpimg=int(NAXIS1/NSAMP)
     #div=16 #Variable multiplo de 2^n 
@@ -110,18 +112,18 @@ def GetSingleCCDImage(ColInit):
     LTA_channel=4
     CCDinMCM=16 
     #ColInit=Order-1+CCDinMCM*N
+    ColInit=Order
     tamy=NAXIS2
 
-    MuxedImage=hdulist[LTA_channel].data
+    # MuxedImage=hdulist[LTA_channel].data
+    print("shape muxed ",np.shape(MuxedImage))
     LastCol=ColInit+(NCOL-1)*NSAMP+1
     indexCol=list(range(ColInit,LastCol,NSAMP))
     DeMuxedImage=np.array(MuxedImage[:, indexCol],dtype='f')
     for p in range(tamy):
         Offset=np.mean(DeMuxedImage[p,(NCOL-int(NCOL-CCDNCOL/2)):NCOL])
         DeMuxedImage[p,:]=DeMuxedImage[p,:]-Offset
-    image_hdu=fits.ImageHDU(data=DeMuxedImage, header=hdulist[LTA_channel].header)
-    image_hdu.verify('silentfix') 
-    #img_CCD16.append(image_hdu)
+    #print(type(DeMuxedImage))
     s2 = time.time()
     s3 = s2 - s1
     print('Demux time:', s3, 'seconds')
@@ -131,7 +133,7 @@ def GetSingleCCDImage(ColInit):
 
 ###Start of the code:
 if __name__=='__main__':
-    time1 = time.time()
+
     inputFile = str(sys.argv[1])
     baseName=os.path.splitext(inputFile)[0]
     ##Directory_Save=str(sys.argv[1])###Where to save the demultiplexed image 
@@ -142,8 +144,8 @@ if __name__=='__main__':
     #gain_list=[] 
 
     ##DEMUX PROCESS
-    global hdulist , N , img_CCD16
-    hdulist = fits.open(inputFile)
+    global hdulist , N
+    hdulist = fits.open(inputFile).copy()
     NAXIS1=int(hdulist[4].header['NAXIS1']) #Size X
     NAXIS2=int(hdulist[4].header['NAXIS2']) #Size Y
     NSAMP=int(hdulist[4].header['NSAMP']) #NUMBER OF CCD's
@@ -157,26 +159,16 @@ if __name__=='__main__':
 
     #print (PartialImageData.shape())
     CCDOrder=[1,5,9,13,2,6,10,14,3,7,11,15,4,8,12,16]
-    result=[]
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        for k in range (NSAMP):
-            future = executor.submit(GetSingleCCDImage, k)
-            result.append(future.result())
-    time2= time.time()
-    print('Final time:', time2-time1, 'seconds')
-########
+
+    Start_Time = time.time() ###Variable for time measurement
     # for N in range(int(NSAMP/CCDinMCM)): ###Generates N images in arrays of 16   
-    #     Start_Time = time.time() ###Variable for time measurement
     #     Primaryhdu_MCM = fits.PrimaryHDU(header=hdulist[0].header)
     #     img_CCD16=fits.HDUList([Primaryhdu_MCM]) #Se crearan nro_imagenes*nsamp/16 (Ej: 5*112/6=35)
-    #     print(type(hdulist))
-    #     #with concurrent.futures.ProcessPoolExecutor() as executor:
     #     result=[]
     #     with concurrent.futures.ThreadPoolExecutor() as executor:
-    #         #Demuxed = executor.map(GetSingleCCDImage,CCDOrder,[hdulist],[N])
-    #         for order in CCDOrder:
-    #             future = executor.submit(GetSingleCCDImage, order)
-    #             result.append(future.result())
+    #         future = executor.map(GetSingleCCDImage,CCDOrder)
+    #     print("Type future",type(future))
+    #         #result.append(future.result())
     #             #print (type(result))
     #     # for item in Demuxed:
     #     #     print (np.shape(Demuxed))
@@ -188,7 +180,11 @@ if __name__=='__main__':
     #     #     PartialImage=GetSingleCCDImage(hdulist,N,CCDOrder)
     #     #     PartialImageData.append(PartialImage)
     #     #     Image_CCD16.append(fits.ImageHDU(PartialImage))
-
+    #     s1=time.time()
+    #     for hdu in result:
+    #         image_hdu=fits.ImageHDU(data=hdu, header=hdulist[LTA_channel].header)
+    #         image_hdu.verify('silentfix') 
+    #         img_CCD16.append(image_hdu)
 
     #         #AllGain.append(gain)
     #     #print(PartialImageData.shape())
@@ -200,14 +196,23 @@ if __name__=='__main__':
     #     img_CCD16.writeto(SaveName,overwrite=True)
     #     img_CCD16.clear()
     #     End_Time = time.time()
-    #     Elapsed_time = End_Time - Start_Time
-    #     print('Execution time:', Elapsed_time, 'seconds')
+    #     s2=time.time()
+    #     print('Saving time:', s2-s1, 'seconds')
+
     #     print((N+1)/(NSAMP/16)*100,"% done...")
-    ##########
+    ###################
+    MuxedImage = Array('d',hdulist[4].data)
+    NAXIS2 = Value('i', NAXIS2)
+    NSAMP = Value('i', NSAMP)
+    NCOL = Value('i', NCOL)
+    CCDNCOL = Value('i', CCDNCOL)
     
-    
-    
-    
+    #def GetSingleCCDImage(Order,NAXIS2,NSAMP,NCOL,CCDNCOL,MuxedImage): 
+    x=list(np.arange(0,NSAMP))
+    #with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        future = executor.map(GetSingleCCDImage,x,args= (MuxedImage=MuxedImage,NAXIS2=NAXIS2,NCOL=NCOL,CCDNCOL=CCDNCOL))
+    End_Time = time.time()
     ###The process of obtaining the gain for NSAMP CCD is executed in parallel
     # with concurrent.futures.ProcessPoolExecutor() as executor:
     #     Result = executor.map(GainSingleCCD,Demuxed)
@@ -225,4 +230,6 @@ if __name__=='__main__':
     hdulist.close()
     #Filename = directorio_demux=directorio_guardado+"Histogram112.pdf"
     #Save_Multi_Image(Filename)
+    Elapsed_time = End_Time - Start_Time
+    print('Execution time:', Elapsed_time, 'seconds')
 
