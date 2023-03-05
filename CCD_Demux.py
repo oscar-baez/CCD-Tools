@@ -121,7 +121,7 @@ if __name__ == '__main__':
     hdulist.close()
     ############################################################
     if args[1]==str("yes"):
-        filename = Directory_Demux+"Histogram"+baseName+".pdf" #Lineas encargadas del pdf de los histogramas.
+        filename = Directory_Demux+"Histogram_"+baseName+".pdf" #Lineas encargadas del pdf de los histogramas.
         save_multi_image(filename)
     ############################################################
     et = time.time()
